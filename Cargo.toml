@@ -43,9 +43,9 @@ rpath = false
 [profile.release]
 opt-level = 3
 debug = false
-codegen-units = 1
+#codegen-units = 1
 lto = true
-incremental = false
+incremental = true
 panic = 'unwind'
 debug-assertions = false
 overflow-checks = false

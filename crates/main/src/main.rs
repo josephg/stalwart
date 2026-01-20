@@ -14,14 +14,15 @@ use http::HttpSessionManager;
 use imap::core::ImapSessionManager;
 use managesieve::core::ManageSieveSessionManager;
 use pop3::Pop3SessionManager;
-use services::{StartServices, broadcast::subscriber::spawn_broadcast_subscriber};
-use smtp::{StartQueueManager, core::SmtpSessionManager};
+use services::{broadcast::subscriber::spawn_broadcast_subscriber, StartServices};
+use smtp::{core::SmtpSessionManager, StartQueueManager};
 use std::time::Duration;
 use trc::Collector;
 use utils::wait_for_shutdown;
 
 #[cfg(not(target_env = "msvc"))]
 use jemallocator::Jemalloc;
+use common::connlog::ConnLogBody;
 
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
@@ -30,7 +31,7 @@ static GLOBAL: Jemalloc = Jemalloc;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     // Load config and apply macros
-    let mut init = Box::pin(BootManager::init()).await;
+    let mut init: BootManager = Box::pin(BootManager::init()).await;
 
     // Migrate database
     if let Err(err) = migration::try_migrate(&init.inner.build_server()).await {
@@ -95,7 +96,7 @@ async fn main() -> std::io::Result<()> {
     });
 
     // Start broadcast subscriber
-    spawn_broadcast_subscriber(init.inner, shutdown_rx);
+    spawn_broadcast_subscriber(init.inner.clone(), shutdown_rx);
 
     // Wait for shutdown signal
     wait_for_shutdown().await;
@@ -105,6 +106,7 @@ async fn main() -> std::io::Result<()> {
 
     // Stop services
     let _ = shutdown_tx.send(true);
+    init.inner.log_file.write_log_msg(ConnLogBody::ServerShutdown).await;
 
     // Wait for services to finish
     tokio::time::sleep(Duration::from_secs(1)).await;

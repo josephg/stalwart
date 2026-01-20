@@ -8,7 +8,7 @@
 
 use ahash::{AHashMap, AHashSet};
 use arc_swap::ArcSwap;
-use auth::{AccessToken, oauth::config::OAuthConfig, roles::RolePermissions};
+use auth::{oauth::config::OAuthConfig, roles::RolePermissions, AccessToken};
 use calcard::common::timezone::Tz;
 use config::{
     groupware::GroupwareConfig,
@@ -17,8 +17,8 @@ use config::{
     network::Network,
     scripts::Scripting,
     smtp::{
-        SmtpConfig,
         resolver::{Policy, Tlsa},
+        SmtpConfig,
     },
     spamfilter::{IpResolver, SpamFilterConfig},
     storage::Storage,
@@ -26,19 +26,19 @@ use config::{
 };
 use ipc::{BroadcastEvent, HousekeeperEvent, PushEvent, QueueEvent, ReportingEvent};
 use listener::{asn::AsnGeoLookupData, blocked::Security, tls::AcmeProviders};
-use mail_auth::{MX, Txt};
+use mail_auth::{Txt, MX};
 use manager::webadmin::{Resource, WebAdminManager};
 use parking_lot::{Mutex, RwLock};
 use rustls::sign::CertifiedKey;
 use std::{
     hash::{BuildHasher, Hash, Hasher},
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    sync::{Arc, atomic::AtomicBool},
+    sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
-use store::rand::{Rng, distr::Alphanumeric};
+use store::rand::{distr::Alphanumeric, Rng};
 use tinyvec::TinyVec;
-use tokio::sync::{Notify, Semaphore, mpsc};
+use tokio::sync::{mpsc, Notify, Semaphore};
 use tokio_rustls::TlsConnector;
 use types::{acl::AclGrant, special_use::SpecialUse};
 use utils::{
@@ -67,12 +67,12 @@ pub mod telemetry;
 
 #[cfg(feature = "enterprise")]
 pub mod enterprise;
-
+pub mod connlog;
 // SPDX-SnippetEnd
 
-pub use psl;
-
+use crate::connlog::ConnLog;
 use crate::{config::spamfilter::SpamClassifier, ipc::TrainTaskController};
+pub use psl;
 
 pub static VERSION_PRIVATE: &str = env!("CARGO_PKG_VERSION");
 pub static VERSION_PUBLIC: &str = "1.0.0";
@@ -126,11 +126,15 @@ pub struct Server {
     pub core: Arc<Core>,
 }
 
+
+
 pub struct Inner {
     pub shared_core: ArcSwap<Core>,
     pub data: Data,
     pub cache: Caches,
     pub ipc: Ipc,
+
+    pub log_file: ConnLog,
 }
 
 pub struct Data {
@@ -467,6 +471,7 @@ impl Default for Inner {
             data: Default::default(),
             ipc: Default::default(),
             cache: Default::default(),
+            log_file: Default::default(),
         }
     }
 }

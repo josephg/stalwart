@@ -7,20 +7,21 @@
 use std::{
     collections::BTreeMap,
     net::IpAddr,
-    sync::{Arc, atomic::AtomicU32},
+    sync::{atomic::AtomicU32, Arc},
 };
 
 use ahash::AHashMap;
 use common::{
-    Inner, Server,
-    auth::AccessToken,
-    listener::{ServerInstance, SessionStream, limiter::InFlight},
+    auth::AccessToken, listener::{limiter::InFlight, ServerInstance, SessionStream},
+    Inner,
+    Server,
 };
 
+use common::connlog::ConnLog;
 use imap_proto::{
-    Command,
-    protocol::{ProtocolVersion, list::Attribute},
+    protocol::{list::Attribute, ProtocolVersion},
     receiver::Receiver,
+    Command,
 };
 use tokio::{
     io::{ReadHalf, WriteHalf},
@@ -59,6 +60,8 @@ pub struct Session<T: SessionStream> {
     pub in_flight: InFlight,
     pub remote_addr: IpAddr,
     pub session_id: u64,
+
+    pub conn_log: ConnLog,
 }
 
 pub struct SessionData<T: SessionStream> {
@@ -70,6 +73,7 @@ pub struct SessionData<T: SessionStream> {
     pub stream_tx: Arc<tokio::sync::Mutex<WriteHalf<T>>>,
     pub state: AtomicU32,
     pub in_flight: Option<InFlight>,
+    pub conn_log: ConnLog,
 }
 
 pub struct SelectedMailbox {
@@ -218,6 +222,7 @@ impl<T: SessionStream> SessionData<T> {
             state: self.state,
             in_flight: self.in_flight,
             access_token: self.access_token,
+            conn_log: self.conn_log,
         }
     }
 }

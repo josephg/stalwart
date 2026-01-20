@@ -5,11 +5,11 @@
  */
 
 use std::{iter::Peekable, sync::Arc, vec::IntoIter};
-
 use common::{
     KV_RATE_LIMIT_IMAP,
     listener::{SessionResult, SessionStream},
 };
+use common::connlog::ConnLogBody;
 use imap_proto::{
     Command, ResponseType, StatusResponse,
     receiver::{self, Request},
@@ -27,9 +27,15 @@ impl<T: SessionStream> Session<T> {
             Contents = trc::Value::from_maybe_string(bytes),
         );
 
+        self.conn_log.write_log_msg(ConnLogBody::ClientToServerMsg(bytes)).await;
+
         let mut bytes = bytes.iter();
         let mut requests = Vec::with_capacity(2);
         let mut needs_literal = None;
+
+        // TODO: MOVE THIS TO A LOG FILE
+        // self.conn_log
+        // stdout().write_all(bytes.as_slice()).unwrap();
 
         loop {
             match self.receiver.parse(&mut bytes) {
@@ -90,6 +96,7 @@ impl<T: SessionStream> Session<T> {
 
         let mut requests = requests.into_iter().peekable();
         while let Some(request) = requests.next() {
+            // println!("Got IMAP request: '{:?}'", &request);
             let result = match request.command {
                 Command::List | Command::Lsub => self
                     .handle_list(request)

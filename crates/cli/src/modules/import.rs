@@ -120,6 +120,9 @@ impl ImportCommands {
                     }
                 }
 
+                // dbg!(&create_mailboxes);
+                dbg!(&create_mailbox_names);
+
                 // Fetch all mailboxes for the account
                 eprintln!(
                     "{} Fetching existing mailboxes for account...",
@@ -144,6 +147,7 @@ impl ImportCommands {
                 for mailbox in response.list() {
                     let mailbox_id = mailbox.id().unwrap();
                     if mailbox.role() == Role::Inbox {
+                        println!("Found inbox with ID {}", mailbox_id);
                         inbox_id = mailbox_id.into();
                     }
                     children
@@ -152,6 +156,8 @@ impl ImportCommands {
                         .push(mailbox_id);
                     mailbox_ids.insert(mailbox_id, mailbox.name().unwrap_or("Untitled"));
                 }
+
+                dbg!(&mailbox_ids);
                 let inbox_id = inbox_id
                     .unwrap_result("locate Inbox on account, please check the server logs.");
                 let mut it = children.get(&None).unwrap().iter();

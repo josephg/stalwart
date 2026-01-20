@@ -5,19 +5,20 @@
  */
 
 use super::{
-    WEBADMIN_KEY,
     backup::BackupParams,
     config::{ConfigManager, Patterns},
     console::store_console,
+    WEBADMIN_KEY,
 };
+use crate::connlog::{ConnLog, ConnLogBody};
 use crate::{
-    Caches, Core, Data, IPC_CHANNEL_BUFFER, Inner, Ipc,
-    config::{network::AsnGeoLookupConfig, server::Listeners, telemetry::Telemetry},
-    core::BuildServer,
-    ipc::{
+    config::{network::AsnGeoLookupConfig, server::Listeners, telemetry::Telemetry}, core::BuildServer, ipc::{
         BroadcastEvent, HousekeeperEvent, PushEvent, QueueEvent, ReportingEvent,
         TrainTaskController,
-    },
+    }, Caches, Core, Data,
+    Inner,
+    Ipc,
+    IPC_CHANNEL_BUFFER,
 };
 use arc_swap::ArcSwap;
 use pwhash::sha512_crypt;
@@ -27,14 +28,15 @@ use std::{
     sync::Arc,
 };
 use store::{
+    rand::{distr::Alphanumeric, rng, Rng},
     Stores,
-    rand::{Rng, distr::Alphanumeric, rng},
 };
-use tokio::sync::{Notify, mpsc};
+use tokio::fs::File;
+use tokio::sync::{mpsc, Mutex, Notify};
 use utils::{
-    UnwrapFailure,
     config::{Config, ConfigKey},
     failed,
+    UnwrapFailure,
 };
 
 pub struct BootManager {
@@ -480,11 +482,22 @@ impl BootManager {
                     AsnGeoLookupConfig::Resource { .. }
                 );
                 let (ipc, ipc_rxs) = build_ipc(!core.storage.pubsub.is_none());
+
+                let log_file = File::options()
+                    .create(true)
+                    .append(true)
+                    .open("session.log")
+                    .await
+                    .expect("Could not open log file");
+                let conn_log = ConnLog::new(0, log_file);
+                conn_log.write_log_msg(ConnLogBody::ServerStartup).await;
+
                 let inner = Arc::new(Inner {
                     shared_core: ArcSwap::from_pointee(core),
                     data,
                     ipc,
                     cache,
+                    log_file: conn_log,
                 });
 
                 // Load spam model

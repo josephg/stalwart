@@ -3,21 +3,20 @@
  *
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
-
-use std::sync::Arc;
-
+use crate::{GREETING_WITHOUT_TLS, GREETING_WITH_TLS};
+use common::connlog::ConnLogBody;
 use common::{
     core::BuildServer,
-    listener::{SessionData, SessionManager, SessionResult, SessionStream, stream::NullIo},
+    listener::{stream::NullIo, SessionData, SessionManager, SessionResult, SessionStream},
 };
 use imap_proto::{
     protocol::{ProtocolVersion, SerializeResponse},
     receiver::Receiver,
 };
+use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_rustls::server::TlsStream;
-
-use crate::{GREETING_WITH_TLS, GREETING_WITHOUT_TLS};
 
 use super::{ImapSessionManager, Session, State};
 
@@ -25,15 +24,34 @@ impl SessionManager for ImapSessionManager {
     #[allow(clippy::manual_async_fn)]
     fn handle<T: SessionStream>(
         self,
-        session: SessionData<T>,
+        session_data: SessionData<T>,
     ) -> impl std::future::Future<Output = ()> + Send {
         async move {
-            if let Ok(mut session) = Session::new(session, self).await
-                && session.handle_conn().await
-                && session.instance.acceptor.is_tls()
-                && let Ok(mut session) = session.into_tls().await
-            {
-                session.handle_conn().await;
+            let sockaddr = SocketAddr::new(session_data.remote_ip, session_data.remote_port);
+
+            if let Ok(mut session) = Session::new(session_data, self).await {
+
+                session.conn_log.write_log_msg(ConnLogBody::Connect {
+                    ipaddr: sockaddr.to_string()
+                }).await;
+
+                if session.handle_conn().await
+                    && session.instance.acceptor.is_tls() {
+                    if let Ok(mut session) = session.into_tls().await {
+                        println!("Upgraded to TLS");
+                        // Upgraded to TLS.
+                        session.handle_conn().await;
+                        session.conn_log.write_log_msg(ConnLogBody::Close).await;
+                    } else {
+                        // Session failed to upgrade to TLS.
+                        eprintln!("Session failed to upgrade to TLS");
+                    }
+
+                } else {
+                    session.conn_log.write_log_msg(ConnLogBody::Close).await;
+                }
+
+                println!("CLOSED");
             }
         }
     }
@@ -112,12 +130,13 @@ impl<T: SessionStream> Session<T> {
             };
         }
 
+        // self.conn_log.write_log_msg(ConnLogBody::Close).await;
         false
     }
 
     pub async fn new(
         mut session: SessionData<T>,
-        manager: ImapSessionManager,
+        manager: ImapSessionManager
     ) -> Result<Session<T>, ()> {
         // Write greeting
         let is_tls = session.stream.is_tls();
@@ -126,6 +145,11 @@ impl<T: SessionStream> Session<T> {
         } else {
             &GREETING_WITHOUT_TLS
         };
+
+        let conn_log = manager.inner.log_file.clone_with_conn_id(session.session_id as u32);
+        // let conn_log = ConnLog::new(session.session_id as u32, manager.inner.log_file.as_ref().map(|x| x.clone()));
+
+        println!("New session created");
 
         if let Err(err) = session.stream.write_all(greeting).await {
             trc::event!(
@@ -142,7 +166,7 @@ impl<T: SessionStream> Session<T> {
         let (stream_rx, stream_tx) = tokio::io::split(session.stream);
         let server = manager.inner.build_server();
 
-        Ok(Session {
+        let session_obj = Session {
             receiver: Receiver::with_max_request_size(server.core.imap.max_request_size),
             version: ProtocolVersion::Rev1,
             state: State::NotAuthenticated { auth_failures: 0 },
@@ -157,10 +181,14 @@ impl<T: SessionStream> Session<T> {
             remote_addr: session.remote_ip,
             stream_rx,
             stream_tx: Arc::new(tokio::sync::Mutex::new(stream_tx)),
-        })
+            conn_log,
+        };
+
+        Ok(session_obj)
     }
 
     pub async fn into_tls(self) -> Result<Session<TlsStream<T>>, ()> {
+        println!("into_tls");
         // Drop references to write half from state
         let state = if let Some(state) =
             self.state
@@ -212,6 +240,7 @@ impl<T: SessionStream> Session<T> {
             remote_addr: self.remote_addr,
             stream_rx,
             stream_tx,
+            conn_log: self.conn_log,
         })
     }
 }
@@ -227,6 +256,9 @@ impl<T: SessionStream> Session<T> {
             Contents = trc::Value::from_maybe_string(bytes),
         );
 
+        // println!("Session write_bytes");
+        self.conn_log.write_log_msg(ConnLogBody::ServerToClientMsg(bytes)).await;
+
         let mut stream = self.stream_tx.lock().await;
         if let Err(err) = stream.write_all(bytes).await {
             Err(trc::NetworkEvent::WriteError
@@ -240,6 +272,7 @@ impl<T: SessionStream> Session<T> {
     }
 
     pub async fn write_error(&self, err: trc::Error) -> bool {
+        // println!("Session write_error {:?}", err);
         if err.should_write_err() {
             let disconnect = err.must_disconnect();
             let bytes = err.serialize();
@@ -263,6 +296,11 @@ impl<T: SessionStream> super::SessionData<T> {
     pub async fn write_bytes(&self, bytes: impl AsRef<[u8]>) -> trc::Result<()> {
         let bytes = bytes.as_ref();
 
+        // println!("SessionData write_bytes");
+        // stdout().write_all(bytes).unwrap();
+
+        self.conn_log.write_log_msg(ConnLogBody::ServerToClientMsg(bytes)).await;
+
         trc::event!(
             Imap(trc::ImapEvent::RawOutput),
             SpanId = self.session_id,
@@ -283,6 +321,8 @@ impl<T: SessionStream> super::SessionData<T> {
     }
 
     pub async fn write_error(&self, err: trc::Error) -> trc::Result<()> {
+        // println!("SessionData write_error {:?}", err);
+        
         if err.should_write_err() {
             let bytes = err.serialize();
             trc::error!(err.span_id(self.session_id));

@@ -202,7 +202,7 @@ trait BuildSession {
         stream: T,
         local_addr: SocketAddr,
         remote_addr: SocketAddr,
-        server: &Server,
+        server: &Server
     ) -> Option<SessionData<T>>;
 }
 

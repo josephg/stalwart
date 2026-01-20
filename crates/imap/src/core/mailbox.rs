@@ -45,6 +45,7 @@ impl<T: SessionStream> SessionData<T> {
             state: access_token.state().into(),
             access_token,
             in_flight,
+            conn_log: session.conn_log.clone(),
         };
         let access_token = session.access_token.clone();
 

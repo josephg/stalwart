@@ -27,6 +27,7 @@ impl<T: SessionStream> Session<T> {
         // Validate access
         self.assert_has_permission(Permission::ImapCreate)?;
 
+        println!("HANDLE CREATE");
         let data = self.state.session_data();
         let is_utf8 = self.is_utf8;
 
