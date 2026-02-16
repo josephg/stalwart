@@ -131,120 +131,127 @@ impl Capability {
         });
     }
 
-    #[cfg(not(feature = "limitedcaps"))]
     pub fn all_capabilities(is_authenticated: bool, offer_tls: bool) -> Vec<Capability> {
-        let mut capabilities = vec![
-            Capability::IMAP4rev2,
-            Capability::IMAP4rev1,
-            Capability::Enable,
-            Capability::SASLIR,
-            Capability::LiteralPlus,
-            Capability::Id,
-            Capability::Utf8Accept,
-            Capability::JmapAccess,
-        ];
+        let limit_caps = match std::env::var("LIMITCAPS") {
+            Ok(_) => true,
+            Err(std::env::VarError::NotPresent) => false,
+            Err(err) => {
+                eprintln!("Error fetching LIMITCAPS env var {:?}", err);
+                false
+            },
+        };
 
-        if is_authenticated {
-            capabilities.extend([
-                Capability::Idle,
-                Capability::Namespace,
-                Capability::Children,
-                Capability::MultiAppend,
-                Capability::Binary,
-                Capability::Unselect,
-                Capability::ACL,
-                Capability::UIDPlus,
-                Capability::ESearch,
-                Capability::Within,
-                Capability::SearchRes,
-                Capability::Sort,
-                Capability::Thread,
-                Capability::ListExtended,
-                Capability::ListStatus,
-                Capability::ESort,
-                Capability::SortDisplay,
-                Capability::SpecialUse,
-                Capability::CreateSpecialUse,
-                Capability::Move,
-                Capability::CondStore,
-                Capability::QResync,
-                Capability::UnAuthenticate,
-                Capability::StatusSize,
-                Capability::ObjectId,
-                Capability::Preview,
-                Capability::Quota,
-                Capability::QuotaResource(QuotaResourceName::Storage),
-            ]);
+        if limit_caps {
+            let mut capabilities = vec![
+                // Capability::IMAP4rev2,
+                Capability::IMAP4rev1,
+                Capability::Enable,
+                Capability::SASLIR,
+                Capability::LiteralPlus,
+                Capability::Id,
+                // Capability::Utf8Accept,
+                Capability::JmapAccess,
+            ];
+
+            if is_authenticated {
+                capabilities.extend([
+                    Capability::Idle,
+                    Capability::Namespace,
+                    Capability::Children,
+                    Capability::MultiAppend,
+                    Capability::Binary,
+                    Capability::Unselect,
+                    Capability::ACL,
+                    Capability::UIDPlus,
+                    Capability::ESearch,
+                    Capability::Within,
+                    Capability::SearchRes,
+                    // Capability::Sort,
+                    // Capability::Thread,
+                    Capability::ListExtended,
+                    Capability::ListStatus,
+                    Capability::ESort,
+                    Capability::SortDisplay,
+                    Capability::SpecialUse,
+                    Capability::CreateSpecialUse,
+                    Capability::Move,
+                    // Capability::CondStore,
+                    // Capability::QResync,
+                    Capability::UnAuthenticate,
+                    Capability::StatusSize,
+                    // Capability::ObjectId,
+                    // Capability::Preview,
+                    // Capability::Quota,
+                    // Capability::QuotaResource(QuotaResourceName::Storage),
+                ]);
+            } else {
+                capabilities.extend([
+                    Capability::Auth(Mechanism::Plain),
+                    Capability::Auth(Mechanism::OAuthBearer),
+                    Capability::Auth(Mechanism::XOauth2),
+                ]);
+            }
+            if offer_tls {
+                capabilities.push(Capability::StartTLS);
+            }
+
+            capabilities
         } else {
-            capabilities.extend([
-                Capability::Auth(Mechanism::Plain),
-                Capability::Auth(Mechanism::OAuthBearer),
-                Capability::Auth(Mechanism::XOauth2),
-            ]);
-        }
-        if offer_tls {
-            capabilities.push(Capability::StartTLS);
-        }
+            let mut capabilities = vec![
+                Capability::IMAP4rev2,
+                Capability::IMAP4rev1,
+                Capability::Enable,
+                Capability::SASLIR,
+                Capability::LiteralPlus,
+                Capability::Id,
+                Capability::Utf8Accept,
+                Capability::JmapAccess,
+            ];
 
-        capabilities
-    }
+            if is_authenticated {
+                capabilities.extend([
+                    Capability::Idle,
+                    Capability::Namespace,
+                    Capability::Children,
+                    Capability::MultiAppend,
+                    Capability::Binary,
+                    Capability::Unselect,
+                    Capability::ACL,
+                    Capability::UIDPlus,
+                    Capability::ESearch,
+                    Capability::Within,
+                    Capability::SearchRes,
+                    Capability::Sort,
+                    Capability::Thread,
+                    Capability::ListExtended,
+                    Capability::ListStatus,
+                    Capability::ESort,
+                    Capability::SortDisplay,
+                    Capability::SpecialUse,
+                    Capability::CreateSpecialUse,
+                    Capability::Move,
+                    Capability::CondStore,
+                    Capability::QResync,
+                    Capability::UnAuthenticate,
+                    Capability::StatusSize,
+                    Capability::ObjectId,
+                    Capability::Preview,
+                    Capability::Quota,
+                    Capability::QuotaResource(QuotaResourceName::Storage),
+                ]);
+            } else {
+                capabilities.extend([
+                    Capability::Auth(Mechanism::Plain),
+                    Capability::Auth(Mechanism::OAuthBearer),
+                    Capability::Auth(Mechanism::XOauth2),
+                ]);
+            }
+            if offer_tls {
+                capabilities.push(Capability::StartTLS);
+            }
 
-    #[cfg(feature = "limitedcaps")]
-    pub fn all_capabilities(is_authenticated: bool, offer_tls: bool) -> Vec<Capability> {
-        let mut capabilities = vec![
-            // Capability::IMAP4rev2,
-            Capability::IMAP4rev1,
-            Capability::Enable,
-            Capability::SASLIR,
-            Capability::LiteralPlus,
-            Capability::Id,
-            // Capability::Utf8Accept,
-            Capability::JmapAccess,
-        ];
-
-        if is_authenticated {
-            capabilities.extend([
-                Capability::Idle,
-                Capability::Namespace,
-                Capability::Children,
-                Capability::MultiAppend,
-                Capability::Binary,
-                Capability::Unselect,
-                Capability::ACL,
-                Capability::UIDPlus,
-                Capability::ESearch,
-                Capability::Within,
-                Capability::SearchRes,
-                // Capability::Sort,
-                // Capability::Thread,
-                Capability::ListExtended,
-                Capability::ListStatus,
-                Capability::ESort,
-                Capability::SortDisplay,
-                Capability::SpecialUse,
-                Capability::CreateSpecialUse,
-                Capability::Move,
-                // Capability::CondStore,
-                // Capability::QResync,
-                Capability::UnAuthenticate,
-                Capability::StatusSize,
-                // Capability::ObjectId,
-                // Capability::Preview,
-                // Capability::Quota,
-                // Capability::QuotaResource(QuotaResourceName::Storage),
-            ]);
-        } else {
-            capabilities.extend([
-                Capability::Auth(Mechanism::Plain),
-                Capability::Auth(Mechanism::OAuthBearer),
-                Capability::Auth(Mechanism::XOauth2),
-            ]);
+            capabilities
         }
-        if offer_tls {
-            capabilities.push(Capability::StartTLS);
-        }
-
-        capabilities
     }
 }
 
