@@ -41,16 +41,16 @@ overflow-checks = false
 rpath = false
 
 [profile.release]
-opt-level = 3
-debug = false
+opt-level = 2
+debug = 1
 #codegen-units = 1
-lto = true
+#lto = true
 incremental = true
 panic = 'unwind'
 debug-assertions = false
 overflow-checks = false
 rpath = false
-strip = true
+#strip = true
 
 [profile.test]
 opt-level = 0
