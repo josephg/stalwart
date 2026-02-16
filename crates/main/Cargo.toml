@@ -66,3 +66,4 @@ enterprise = [ "jmap/enterprise",
                "trc/enterprise",
                "services/enterprise",
                "migration/enterprise" ]
+limitedcaps = ["imap/limitedcaps"]
