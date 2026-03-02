@@ -25,6 +25,7 @@ md5 = "0.8.0"
 rand = "0.9.0"
 indexmap = "2.7.1"
 compact_str = "0.9.0"
+flate2 = "1.1"
 
 
 [features]

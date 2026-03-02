@@ -18,7 +18,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_rustls::server::TlsStream;
 
-use super::{ImapSessionManager, Session, State};
+use super::{ImapSessionManager, Session, State, compress::SessionWriter};
 
 impl SessionManager for ImapSessionManager {
     #[allow(clippy::manual_async_fn)]
@@ -79,7 +79,23 @@ impl<T: SessionStream> Session<T> {
                     match result {
                         Ok(Ok(bytes_read)) => {
                             if bytes_read > 0 {
-                                match self.ingest(&buf[..bytes_read]).await {
+                                let result = if let Some(ref mut decompressor) = self.decompressor {
+                                    match decompressor.decompress(&buf[..bytes_read]) {
+                                        Ok(decompressed) => self.ingest(&decompressed).await,
+                                        Err(err) => {
+                                            trc::event!(
+                                                Network(trc::NetworkEvent::ReadError),
+                                                SpanId = self.session_id,
+                                                Reason = format!("Decompression error: {}", err),
+                                                CausedBy = trc::location!()
+                                            );
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    self.ingest(&buf[..bytes_read]).await
+                                };
+                                match result {
                                     SessionResult::Continue => (),
                                     SessionResult::UpgradeTls => {
                                         return true;
@@ -174,13 +190,15 @@ impl<T: SessionStream> Session<T> {
             is_condstore: false,
             is_qresync: false,
             is_utf8: false,
+            is_compress: false,
+            decompressor: None,
             server,
             instance: session.instance,
             session_id: session.session_id,
             in_flight: session.in_flight,
             remote_addr: session.remote_ip,
             stream_rx,
-            stream_tx: Arc::new(tokio::sync::Mutex::new(stream_tx)),
+            stream_tx: Arc::new(tokio::sync::Mutex::new(SessionWriter::new(stream_tx))),
             conn_log,
         };
 
@@ -193,7 +211,7 @@ impl<T: SessionStream> Session<T> {
         let state = if let Some(state) =
             self.state
                 .try_replace_stream_tx(Arc::new(tokio::sync::Mutex::new(
-                    tokio::io::split(NullIo::default()).1,
+                    SessionWriter::new(tokio::io::split(NullIo::default()).1),
                 ))) {
             state
         } else {
@@ -206,10 +224,10 @@ impl<T: SessionStream> Session<T> {
         };
 
         // Take ownership of WriteHalf and unsplit it from ReadHalf
-        let stream = if let Ok(stream_tx) =
+        let stream = if let Ok(session_writer) =
             Arc::try_unwrap(self.stream_tx).map(|mutex| mutex.into_inner())
         {
-            self.stream_rx.unsplit(stream_tx)
+            self.stream_rx.unsplit(session_writer.writer)
         } else {
             trc::event!(
                 Network(trc::NetworkEvent::SplitError),
@@ -223,7 +241,7 @@ impl<T: SessionStream> Session<T> {
         // Upgrade to TLS
         let (stream_rx, stream_tx) =
             tokio::io::split(self.instance.tls_accept(stream, self.session_id).await?);
-        let stream_tx = Arc::new(tokio::sync::Mutex::new(stream_tx));
+        let stream_tx = Arc::new(tokio::sync::Mutex::new(SessionWriter::new(stream_tx)));
 
         Ok(Session {
             server: self.server,
@@ -235,6 +253,8 @@ impl<T: SessionStream> Session<T> {
             is_condstore: self.is_condstore,
             is_qresync: self.is_qresync,
             is_utf8: self.is_utf8,
+            is_compress: self.is_compress,
+            decompressor: self.decompressor,
             session_id: self.session_id,
             in_flight: self.in_flight,
             remote_addr: self.remote_addr,

@@ -3416,6 +3416,7 @@ dependencies = [
  "compact_str",
  "directory",
  "email",
+ "flate2",
  "imap_proto",
  "indexmap 2.13.0",
  "mail-parser",

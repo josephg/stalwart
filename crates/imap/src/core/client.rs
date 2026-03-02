@@ -246,6 +246,10 @@ impl<T: SessionStream> Session<T> {
                     .handle_get_quota_root(request)
                     .await
                     .map(|_| SessionResult::Continue),
+                Command::Compress => self
+                    .handle_compress(request)
+                    .await
+                    .map(|_| SessionResult::Continue),
                 Command::Unauthenticate => self
                     .handle_unauthenticate(request)
                     .await
@@ -379,6 +383,7 @@ impl<T: SessionStream> Session<T> {
             | Command::Status
             | Command::Append
             | Command::Idle
+            | Command::Compress
             | Command::SetAcl
             | Command::DeleteAcl
             | Command::GetAcl

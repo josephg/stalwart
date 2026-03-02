@@ -32,6 +32,7 @@ pub mod select;
 pub mod status;
 pub mod store;
 pub mod subscribe;
+pub mod compress;
 pub mod thread;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -492,6 +493,7 @@ impl ResponseCode {
                 return;
             }
             ResponseCode::UseAttr => b"USEATTR",
+            ResponseCode::CompressionActive => b"COMPRESSIONACTIVE",
         });
     }
 
@@ -535,6 +537,7 @@ impl ResponseCode {
             ResponseCode::MailboxId { .. } => "MAILBOXID",
             ResponseCode::HighestModseq { .. } => "HIGHESTMODSEQ",
             ResponseCode::UseAttr => "USEATTR",
+            ResponseCode::CompressionActive => "COMPRESSIONACTIVE",
         }
     }
 }
@@ -726,6 +729,7 @@ impl Display for Command {
             Command::Id => write!(f, "ID"),
             Command::GetQuota => write!(f, "GETQUOTA"),
             Command::GetQuotaRoot => write!(f, "GETQUOTAROOT"),
+            Command::Compress => write!(f, "COMPRESS"),
         }
     }
 }

@@ -40,6 +40,9 @@ pub enum Command {
     Append,
     Idle,
 
+    // RFC 4978
+    Compress,
+
     // Client Commands - Selected State
     Close,
     Unselect,
@@ -152,6 +155,9 @@ pub enum ResponseCode {
 
     // USEATTR
     UseAttr,
+
+    // RFC 4978
+    CompressionActive,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

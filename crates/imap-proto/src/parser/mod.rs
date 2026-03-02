@@ -23,6 +23,7 @@ pub mod sort;
 pub mod status;
 pub mod store;
 pub mod subscribe;
+pub mod compress;
 pub mod thread;
 
 use std::{borrow::Cow, str::FromStr};
@@ -80,6 +81,7 @@ impl CommandParser for Command {
             "ID" => Command::Id,
             "GETQUOTA" => Command::GetQuota,
             "GETQUOTAROOT" => Command::GetQuotaRoot,
+            "COMPRESS" => Command::Compress,
         )
     }
 

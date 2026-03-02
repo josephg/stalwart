@@ -12,6 +12,7 @@ pub mod append;
 pub mod authenticate;
 pub mod capability;
 pub mod close;
+pub mod compress;
 pub mod copy_move;
 pub mod create;
 pub mod delete;

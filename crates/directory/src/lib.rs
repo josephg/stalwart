@@ -423,6 +423,7 @@ pub enum Permission {
     JmapParticipantIdentityGet,
     JmapParticipantIdentitySet,
     JmapParticipantIdentityChanges,
+    ImapCompress,
     // TODO: Reuse _ suffixes for new permissions
     // WARNING: add new ids at the end (TODO: use static ids)
 }

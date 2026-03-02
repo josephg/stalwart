@@ -1562,6 +1562,7 @@ impl Permission {
                 | Permission::ImapStore
                 | Permission::ImapSubscribe
                 | Permission::ImapThread
+                | Permission::ImapCompress
                 | Permission::Pop3Authenticate
                 | Permission::Pop3List
                 | Permission::Pop3Uidl

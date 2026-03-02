@@ -171,6 +171,7 @@ impl Permission {
             Permission::ImapStore => "Modify message flags via IMAP",
             Permission::ImapSubscribe => "Subscribe to mailboxes via IMAP",
             Permission::ImapThread => "Thread messages via IMAP",
+            Permission::ImapCompress => "Use IMAP COMPRESS command",
             Permission::Pop3Authenticate => "Authenticate via POP3",
             Permission::Pop3List => "List messages via POP3",
             Permission::Pop3Uidl => "Retrieve unique IDs via POP3",

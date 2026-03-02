@@ -84,7 +84,8 @@ impl EventType {
                 | ImapEvent::Error
                 | ImapEvent::IdleStart
                 | ImapEvent::IdleStop
-                | ImapEvent::GetQuota => Level::Debug,
+                | ImapEvent::GetQuota
+                | ImapEvent::Compress => Level::Debug,
                 ImapEvent::RawInput | ImapEvent::RawOutput => Level::Trace,
             },
             EventType::ManageSieve(event) => match event {

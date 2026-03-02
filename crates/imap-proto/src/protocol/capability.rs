@@ -53,6 +53,7 @@ pub enum Capability {
     QuotaResource(QuotaResourceName),
     QuotaSet,
     JmapAccess,
+    CompressDeflate,
 }
 
 /*
@@ -128,6 +129,7 @@ impl Capability {
             }
             Capability::QuotaSet => b"QUOTA=SET",
             Capability::JmapAccess => b"JMAPACCESS",
+            Capability::CompressDeflate => b"COMPRESS=DEFLATE",
         });
     }
 
@@ -151,6 +153,7 @@ impl Capability {
                 Capability::Id,
                 // Capability::Utf8Accept,
                 Capability::JmapAccess,
+                Capability::CompressDeflate,
             ];
 
             if is_authenticated {
@@ -206,6 +209,7 @@ impl Capability {
                 Capability::Id,
                 Capability::Utf8Accept,
                 Capability::JmapAccess,
+                Capability::CompressDeflate,
             ];
 
             if is_authenticated {

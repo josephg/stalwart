@@ -252,6 +252,7 @@ impl ImapEvent {
             ImapEvent::ConnectionStart => "IMAP connection started",
             ImapEvent::ConnectionEnd => "IMAP connection ended",
             ImapEvent::GetQuota => "IMAP GETQUOTA command",
+            ImapEvent::Compress => "IMAP COMPRESS command",
         }
     }
 
@@ -294,6 +295,7 @@ impl ImapEvent {
             ImapEvent::ConnectionStart => "IMAP connection started",
             ImapEvent::ConnectionEnd => "IMAP connection ended",
             ImapEvent::GetQuota => "Client requested mailbox quota",
+            ImapEvent::Compress => "Client enabled DEFLATE compression",
         }
     }
 }

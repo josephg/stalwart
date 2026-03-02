@@ -30,6 +30,7 @@ use tokio::{
 use trc::AddContext;
 
 pub mod client;
+pub mod compress;
 pub mod mailbox;
 pub mod message;
 pub mod session;
@@ -55,8 +56,10 @@ pub struct Session<T: SessionStream> {
     pub is_condstore: bool,
     pub is_qresync: bool,
     pub is_utf8: bool,
+    pub is_compress: bool,
+    pub decompressor: Option<compress::DeflateDecompressor>,
     pub stream_rx: ReadHalf<T>,
-    pub stream_tx: Arc<tokio::sync::Mutex<WriteHalf<T>>>,
+    pub stream_tx: Arc<tokio::sync::Mutex<compress::SessionWriter<WriteHalf<T>>>>,
     pub in_flight: InFlight,
     pub remote_addr: IpAddr,
     pub session_id: u64,
@@ -70,7 +73,7 @@ pub struct SessionData<T: SessionStream> {
     pub server: Server,
     pub session_id: u64,
     pub mailboxes: parking_lot::Mutex<Vec<Account>>,
-    pub stream_tx: Arc<tokio::sync::Mutex<WriteHalf<T>>>,
+    pub stream_tx: Arc<tokio::sync::Mutex<compress::SessionWriter<WriteHalf<T>>>>,
     pub state: AtomicU32,
     pub in_flight: Option<InFlight>,
     pub conn_log: ConnLog,
@@ -180,7 +183,7 @@ pub enum State<T: SessionStream> {
 impl<T: SessionStream> State<T> {
     pub fn try_replace_stream_tx<U: SessionStream>(
         self,
-        new_stream: Arc<tokio::sync::Mutex<WriteHalf<U>>>,
+        new_stream: Arc<tokio::sync::Mutex<compress::SessionWriter<WriteHalf<U>>>>,
     ) -> Option<State<U>> {
         match self {
             State::NotAuthenticated { auth_failures } => {
@@ -211,7 +214,7 @@ impl<T: SessionStream> SessionData<T> {
 
     pub fn replace_stream_tx<U: SessionStream>(
         self,
-        new_stream: Arc<tokio::sync::Mutex<WriteHalf<U>>>,
+        new_stream: Arc<tokio::sync::Mutex<compress::SessionWriter<WriteHalf<U>>>>,
     ) -> SessionData<U> {
         SessionData {
             account_id: self.account_id,
