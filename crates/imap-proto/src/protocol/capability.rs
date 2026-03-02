@@ -143,6 +143,15 @@ impl Capability {
             },
         };
 
+        let disable_compression = match std::env::var("NOCOMPRESS") {
+            Ok(_) => true,
+            Err(std::env::VarError::NotPresent) => false,
+            Err(err) => {
+                eprintln!("Error fetching LIMITCAPS env var {:?}", err);
+                false
+            },
+        };
+
         if limit_caps {
             let mut capabilities = vec![
                 // Capability::IMAP4rev2,
@@ -153,8 +162,11 @@ impl Capability {
                 Capability::Id,
                 // Capability::Utf8Accept,
                 Capability::JmapAccess,
-                Capability::CompressDeflate,
             ];
+
+            if !disable_compression {
+                capabilities.push(Capability::CompressDeflate);
+            }
 
             if is_authenticated {
                 capabilities.extend([
@@ -209,8 +221,11 @@ impl Capability {
                 Capability::Id,
                 Capability::Utf8Accept,
                 Capability::JmapAccess,
-                Capability::CompressDeflate,
             ];
+
+            if !disable_compression {
+                capabilities.push(Capability::CompressDeflate);
+            }
 
             if is_authenticated {
                 capabilities.extend([
