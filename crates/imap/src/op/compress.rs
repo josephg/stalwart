@@ -17,7 +17,7 @@ use imap_proto::{
 impl<T: SessionStream> Session<T> {
     pub async fn handle_compress(&mut self, request: Request<Command>) -> trc::Result<()> {
         // Validate access
-        self.assert_has_permission(Permission::ImapCompress)?;
+        // self.assert_has_permission(Permission::ImapCompress)?;
 
         let op_start = Instant::now();
 
