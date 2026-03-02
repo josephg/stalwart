@@ -66,14 +66,27 @@ impl<T: SessionStream> Session<T> {
         );
 
         let op_start = Instant::now();
-        let mut buf = vec![0; 4];
+        let mut buf = vec![0; 1024];
         loop {
             tokio::select! {
-                result = tokio::time::timeout(self.server.core.imap.timeout_idle, self.stream_rx.read_exact(&mut buf)) => {
+                result = tokio::time::timeout(self.server.core.imap.timeout_idle, self.stream_rx.read(&mut buf)) => {
                     match result {
                         Ok(Ok(bytes_read)) => {
                             if bytes_read > 0 {
-                                if (buf[..bytes_read]).windows(4).any(|w| w == b"DONE") {
+                                let data = if let Some(ref mut decompressor) = self.decompressor {
+                                    match decompressor.decompress(&buf[..bytes_read]) {
+                                        Ok(decompressed) => decompressed,
+                                        Err(err) => {
+                                            return Err(trc::NetworkEvent::ReadError.into_err()
+                                                .reason(err)
+                                                .details("Decompression error during IDLE.")
+                                                .id(request.tag));
+                                        }
+                                    }
+                                } else {
+                                    buf[..bytes_read].to_vec()
+                                };
+                                if data.windows(4).any(|w| w == b"DONE") {
                                     trc::event!(Imap(trc::ImapEvent::IdleStop), SpanId = self.session_id, Elapsed = op_start.elapsed());
                                     return self.write_bytes(StatusResponse::completed(Command::Idle)
                                                                     .with_tag(request.tag)
